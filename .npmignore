@@ -1,0 +1,4 @@
+example-app/
+_original-java/
+*.log
+.DS_Store
