@@ -313,7 +313,6 @@ class LocalNotificationManager(
     fun cancel(notificationsToCancel: List<Int>?) {
         if (notificationsToCancel != null) {
             for (id in notificationsToCancel) {
-                dismissVisibleNotification(id)
                 cancelTimerForNotification(id)
                 storage.deleteNotification(id.toString())
             }
@@ -326,7 +325,6 @@ class LocalNotificationManager(
     fun cancelAll() {
         for (idStr in storage.getSavedNotificationIds()) {
             val id = idStr.toIntOrNull() ?: continue
-            dismissVisibleNotification(id)
             cancelTimerForNotification(id)
             storage.deleteNotification(idStr)
         }
