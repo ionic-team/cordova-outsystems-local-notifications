@@ -101,8 +101,8 @@ public class LocalNotifications {
             }
         }
 
-        if let sound = notification["sound"] as? String {
-            content.sound = UNNotificationSound(named: UNNotificationSoundName(sound))
+        if let sound = notification["sound"] as? String, !sound.isEmpty {
+            content.sound = resolveSound(sound)
         }
 
         if let badge = notification["badge"] as? Int {
@@ -110,6 +110,33 @@ public class LocalNotifications {
         }
 
         return content
+    }
+
+    /// Resolve a `sound` value to a `UNNotificationSound`. OutSystems bundles the
+    /// audio file into the app's web assets (`www/` for Cordova, `public/` for
+    /// Capacitor), so a bare filename is searched there — matching the exact name
+    /// or the hashed `<base>__<hash>.<ext>` variant the build may emit — and the
+    /// folder-qualified name is passed to `UNNotificationSound` (which is what it
+    /// needs). Falls back to the value as a bundle-root sound name, then default.
+    private func resolveSound(_ path: String) -> UNNotificationSound {
+        let ext = (path as NSString).pathExtension
+        let base = (path as NSString).deletingPathExtension
+        if !ext.isEmpty, let resourcePath = Bundle.main.resourcePath {
+            let fileManager = FileManager.default
+            for folder in ["www", "public"] {
+                let folderPath = (resourcePath as NSString).appendingPathComponent(folder)
+                guard let files = try? fileManager.contentsOfDirectory(atPath: folderPath) else { continue }
+                let exact = "\(base).\(ext)"
+                if files.contains(exact) {
+                    return UNNotificationSound(named: UNNotificationSoundName("\(folder)/\(exact)"))
+                }
+                let pattern = "^\(NSRegularExpression.escapedPattern(for: base))__.+\\.\(NSRegularExpression.escapedPattern(for: ext))$"
+                if let match = files.first(where: { $0.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil }) {
+                    return UNNotificationSound(named: UNNotificationSoundName("\(folder)/\(match)"))
+                }
+            }
+        }
+        return UNNotificationSound(named: UNNotificationSoundName(path))
     }
 
     /// Build a notification trigger from the Capacitor `schedule` shape.

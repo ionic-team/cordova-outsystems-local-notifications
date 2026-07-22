@@ -95,6 +95,33 @@ class LocalNotificationManager(
         }
     }
 
+    /**
+     * When a notification carries a custom `sound` but no explicit `channelId`,
+     * create (once) a dedicated channel configured with that sound and return its
+     * id. On Android 8+ the sound belongs to the channel, not the notification, so
+     * a per-notification sound only plays if it rides on its own channel. Returns
+     * null when there is no resolvable custom sound (the default channel is used).
+     */
+    private fun soundChannelId(localNotification: LocalNotification): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+        val name = AssetUtil.getResourceBaseName(localNotification.sound) ?: return null
+        val resId = AssetUtil.getResourceID(context, name, "raw")
+        if (resId == AssetUtil.RESOURCE_ID_ZERO_VALUE) return null
+        val channelId = "sound_$name"
+        val notificationManager = context.getSystemService(android.app.NotificationManager::class.java)
+        if (notificationManager.getNotificationChannel(channelId) == null) {
+            val channel = NotificationChannel(channelId, "Notifications ($name)", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+            val soundUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + context.packageName + "/raw/" + name)
+            channel.setSound(soundUri, audioAttributes)
+            notificationManager.createNotificationChannel(channel)
+        }
+        return channelId
+    }
+
     @Throws(LocalNotificationsException::class)
     fun schedule(localNotifications: List<LocalNotification>): JSONArray {
         val ids = JSONArray()
@@ -121,7 +148,7 @@ class LocalNotificationManager(
     @Throws(LocalNotificationsException::class)
     private fun buildNotification(notificationManager: NotificationManagerCompat, localNotification: LocalNotification) {
         val id = localNotification.id ?: throw LocalNotificationsError.MISSING_IDENTIFIER.toException()
-        val channelId = localNotification.channelId ?: DEFAULT_NOTIFICATION_CHANNEL_ID
+        val channelId = localNotification.channelId ?: soundChannelId(localNotification) ?: DEFAULT_NOTIFICATION_CHANNEL_ID
 
         val foreground = localNotification.foreground == true
         val mBuilder = NotificationCompat.Builder(context, channelId)
