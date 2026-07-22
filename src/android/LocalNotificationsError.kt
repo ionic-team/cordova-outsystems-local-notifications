@@ -9,6 +9,7 @@ import org.json.JSONObject
 enum class LocalNotificationsError(val code: String, val message: String) {
     INVALID_NOTIFICATIONS_ARRAY("OS-PLUG-LNOT-0001", "Must provide a notifications array as the notifications option."),
     MISSING_IDENTIFIER("OS-PLUG-LNOT-0002", "Notification is missing an identifier."),
+    SCHEDULE_IN_PAST("OS-PLUG-LNOT-0005", "Scheduled time must be after the current time."),
     NOTIFICATIONS_DISABLED("OS-PLUG-LNOT-0006", "Notifications are not enabled on this device."),
     INVALID_COLOR("OS-PLUG-LNOT-0007", "Invalid color provided. Must be a hex string (e.g. #ff0000)."),
     INVALID_NOTIFICATION_FORMAT("OS-PLUG-LNOT-0008", "Provided notification format is invalid."),

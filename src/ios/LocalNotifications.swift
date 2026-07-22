@@ -8,6 +8,7 @@ enum LocalNotificationsError: Error {
     case missingIdentifier
     case contentBuildFailed
     case triggerBuildFailed
+    case scheduleInPast
     case notificationsDisabled
     case invalidColor
     case invalidRemoveList
@@ -21,6 +22,7 @@ enum LocalNotificationsError: Error {
         case .missingIdentifier: return "OS-PLUG-LNOT-0002"
         case .contentBuildFailed: return "OS-PLUG-LNOT-0003"
         case .triggerBuildFailed: return "OS-PLUG-LNOT-0004"
+        case .scheduleInPast: return "OS-PLUG-LNOT-0005"
         case .notificationsDisabled: return "OS-PLUG-LNOT-0006"
         case .invalidColor: return "OS-PLUG-LNOT-0007"
         case .invalidRemoveList: return "OS-PLUG-LNOT-0012"
@@ -36,6 +38,7 @@ enum LocalNotificationsError: Error {
         case .missingIdentifier: return "Notification is missing an identifier."
         case .contentBuildFailed: return "Unable to build the notification content."
         case .triggerBuildFailed: return "Unable to create the notification, trigger construction failed."
+        case .scheduleInPast: return "Scheduled time must be after the current time."
         case .notificationsDisabled: return "Notifications are not enabled on this device."
         case .invalidColor: return "Invalid color provided. Must be a hex string (e.g. #ff0000)."
         case .invalidRemoveList: return "Expected notifications to be a list of notification objects."
@@ -126,8 +129,7 @@ public class LocalNotifications {
             let dateInfo = Calendar.current.dateComponents(in: TimeZone.current, from: at)
 
             if dateInfo.date! < Date() {
-                // Legacy behavior: a past scheduled time fires the notification immediately.
-                return nil
+                throw LocalNotificationsError.scheduleInPast
             }
 
             let dateInterval = DateInterval(start: Date(), end: dateInfo.date!)
