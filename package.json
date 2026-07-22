@@ -1,0 +1,23 @@
+{
+  "name": "com.outsystems.plugins.localnotifications",
+  "version": "1.0.0",
+  "description": "OutSystems Cordova plugin for Local Notifications. Mirrors the @capacitor/local-notifications shared API.",
+  "keywords": [
+    "cordova",
+    "outsystems",
+    "local-notifications",
+    "notification"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ionic-team/cordova-outsystems-local-notifications.git"
+  },
+  "cordova": {
+    "id": "com.outsystems.plugins.localnotifications",
+    "platforms": [
+      "android",
+      "ios"
+    ]
+  }
+}

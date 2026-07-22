@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+*.log
+
+# Pre-Kotlin Java backups (not shipped)
+_original-java/
