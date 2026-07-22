@@ -244,9 +244,13 @@ class OSLocalNotificationsPlugin: CDVPlugin {
     @objc(startEventListener:)
     func startEventListener(_ command: CDVInvokedUrlCommand) {
         eventCallbackId = command.callbackId
-        let keepAlive = CDVPluginResult(status: CDVCommandStatus_NO_RESULT)
-        keepAlive.keepCallback = NSNumber(value: true)
-        commandDelegate.send(keepAlive, callbackId: command.callbackId)
+        // CDVPluginResult's initializer is nullable on some cordova-ios versions
+        // and non-optional on others; treat it as optional so it builds on both.
+        let keepAlive: CDVPluginResult? = CDVPluginResult(status: CDVCommandStatus_NO_RESULT)
+        if let keepAlive = keepAlive {
+            keepAlive.keepCallback = NSNumber(value: true)
+            commandDelegate.send(keepAlive, callbackId: command.callbackId)
+        }
 
         // Flush any events buffered before the listener registered.
         let buffered = pendingEvents
@@ -267,7 +271,8 @@ class OSLocalNotificationsPlugin: CDVPlugin {
 
     private func sendEventPayload(_ payload: [String: Any]) {
         guard let callbackId = eventCallbackId else { return }
-        let result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: payload)
+        let result: CDVPluginResult? = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: payload)
+        guard let result = result else { return }
         result.keepCallback = NSNumber(value: true)
         commandDelegate.send(result, callbackId: callbackId)
     }
@@ -282,17 +287,21 @@ class OSLocalNotificationsPlugin: CDVPlugin {
     }
 
     private func sendOk(_ command: CDVInvokedUrlCommand, _ data: [String: Any]?) {
-        let result: CDVPluginResult
+        let result: CDVPluginResult?
         if let data = data {
             result = CDVPluginResult(status: CDVCommandStatus_OK, messageAs: data)
         } else {
             result = CDVPluginResult(status: CDVCommandStatus_OK)
         }
-        commandDelegate.send(result, callbackId: command.callbackId)
+        if let result = result {
+            commandDelegate.send(result, callbackId: command.callbackId)
+        }
     }
 
     private func sendError(_ command: CDVInvokedUrlCommand, _ error: LocalNotificationsError) {
-        let result = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: error.json)
-        commandDelegate.send(result, callbackId: command.callbackId)
+        let result: CDVPluginResult? = CDVPluginResult(status: CDVCommandStatus_ERROR, messageAs: error.json)
+        if let result = result {
+            commandDelegate.send(result, callbackId: command.callbackId)
+        }
     }
 }
