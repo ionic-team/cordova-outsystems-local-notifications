@@ -105,11 +105,6 @@ class LocalNotificationManager(
         }
         for (localNotification in localNotifications) {
             val id = localNotification.id ?: throw LocalNotificationsError.MISSING_IDENTIFIER.toException()
-            // Reject a past scheduled time (parity with iOS and the Capacitor plugin; no silent drop).
-            val at = localNotification.schedule?.at
-            if (at != null && at.time < Date().time) {
-                throw LocalNotificationsError.SCHEDULE_IN_PAST.toException()
-            }
             dismissVisibleNotification(id)
             cancelTimerForNotification(id)
             buildNotification(notificationManager, localNotification)
@@ -255,7 +250,8 @@ class LocalNotificationManager(
         val at = schedule.at
         if (at != null) {
             if (at.time < Date().time) {
-                Log.e(LOG_TAG, "Scheduled time must be *after* current time")
+                // Legacy behavior: a past scheduled time fires the notification immediately.
+                setExactIfPossible(alarmManager, schedule, Date().time, pendingIntent)
                 return
             }
             if (schedule.isRepeating()) {
