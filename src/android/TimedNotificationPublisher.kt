@@ -10,6 +10,7 @@ import android.os.Build
 import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
+import org.json.JSONObject
 
 /**
  * Presents a scheduled notification when its alarm fires, and reschedules cron
@@ -39,8 +40,18 @@ class TimedNotificationPublisher : BroadcastReceiver() {
         OSLocalNotificationsPlugin.fireReceived(notificationJson)
         notificationManager.notify(id, notification)
         if (!rescheduleNotificationIfNeeded(context, intent, id)) {
-            storage.deleteNotification(id.toString())
+            // Keep recurring (every / repeats) notifications in storage so cancel()/cancelAll()
+            // can still find and cancel their OS repeating alarm. One-shot notifications are removed.
+            if (!isRepeating(notificationJson)) {
+                storage.deleteNotification(id.toString())
+            }
         }
+    }
+
+    private fun isRepeating(notificationJson: JSONObject?): Boolean {
+        val schedule = notificationJson?.optJSONObject("schedule") ?: return false
+        if (schedule.optString("every", "").isNotEmpty()) return true
+        return schedule.optBoolean("repeats", false)
     }
 
     private fun rescheduleNotificationIfNeeded(context: Context, intent: Intent, id: Int): Boolean {
