@@ -104,18 +104,16 @@ class LocalNotificationManager(
      */
     private fun soundChannelId(localNotification: LocalNotification): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
-        val name = AssetUtil.getResourceBaseName(localNotification.sound) ?: return null
-        val resId = AssetUtil.getResourceID(context, name, "raw")
-        if (resId == AssetUtil.RESOURCE_ID_ZERO_VALUE) return null
-        val channelId = "sound_$name"
+        val sound = localNotification.sound ?: return null
+        val soundUri = SoundResolver.resolveUri(context, sound) ?: return null
+        val channelId = "sound_" + SoundResolver.baseName(sound)
         val notificationManager = context.getSystemService(android.app.NotificationManager::class.java)
         if (notificationManager.getNotificationChannel(channelId) == null) {
-            val channel = NotificationChannel(channelId, "Notifications ($name)", android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            val channel = NotificationChannel(channelId, "Notifications ($channelId)", android.app.NotificationManager.IMPORTANCE_DEFAULT)
             val audioAttributes = AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                 .build()
-            val soundUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE + "://" + context.packageName + "/raw/" + name)
             channel.setSound(soundUri, audioAttributes)
             notificationManager.createNotificationChannel(channel)
         }
@@ -177,9 +175,8 @@ class LocalNotificationManager(
             mBuilder.setStyle(inboxStyle)
         }
 
-        val sound = localNotification.resolveSound(context, getDefaultSound(context))
-        if (sound != null) {
-            val soundUri = Uri.parse(sound)
+        val soundUri = SoundResolver.resolveUri(context, localNotification.sound) ?: getDefaultSoundUrl(context)
+        if (soundUri != null) {
             context.grantUriPermission("com.android.systemui", soundUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
             mBuilder.setSound(soundUri)
             mBuilder.setDefaults(Notification.DEFAULT_VIBRATE or Notification.DEFAULT_LIGHTS)

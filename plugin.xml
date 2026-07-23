@@ -36,6 +36,15 @@
           <action android:name="android.intent.action.QUICKBOOT_POWERON" />
         </intent-filter>
       </receiver>
+      <provider
+        android:name="com.outsystems.plugins.localnotifications.LocalNotificationsAssetProvider"
+        android:authorities="${applicationId}.localnotifications.fileprovider"
+        android:exported="false"
+        android:grantUriPermissions="true">
+        <meta-data
+          android:name="android.support.FILE_PROVIDER_PATHS"
+          android:resource="@xml/localnotifications_provider_paths" />
+      </provider>
     </config-file>
 
     <config-file target="AndroidManifest.xml" parent="/manifest">
@@ -60,6 +69,9 @@
     <source-file src="src/android/TimedNotificationPublisher.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
     <source-file src="src/android/LocalNotificationRestoreReceiver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
     <source-file src="src/android/NotificationDismissReceiver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
+    <source-file src="src/android/SoundResolver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
+    <source-file src="src/android/LocalNotificationsAssetProvider.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
+    <resource-file src="src/android/localnotifications_provider_paths.xml" target="res/xml/localnotifications_provider_paths.xml" />
   </platform>
 
   <!-- ios -->
