@@ -380,6 +380,7 @@ class LocalNotificationManager(
         if (pi != null) {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             alarmManager.cancel(pi)
+            pi.cancel()
         }
     }
 
