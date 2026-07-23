@@ -30,7 +30,8 @@ class LocalNotification {
     var groupSummary: Boolean = false
     var ongoing: Boolean = false
     var autoCancel: Boolean = true
-    var extra: JSONObject? = null
+    // Raw JSON value. `extra` is documented as `any`, not just an object.
+    var extra: Any? = null
     var schedule: LocalNotificationSchedule? = null
     var channelId: String? = null
     var source: String? = null
@@ -133,7 +134,9 @@ class LocalNotification {
             if (schedule != null) {
                 n.schedule = LocalNotificationSchedule(schedule)
             }
-            n.extra = jsonObject.jsObject("extra")
+            // jsObject() only accepts an object and silently drops any other type
+            // (e.g. a plain string), so read the raw value instead.
+            n.extra = if (jsonObject.has("extra") && !jsonObject.isNull("extra")) jsonObject.get("extra") else null
             n.ongoing = jsonObject.booleanOr("ongoing", false)
             n.autoCancel = jsonObject.booleanOr("autoCancel", true)
             if (jsonObject.has("badge")) {
@@ -193,6 +196,7 @@ class LocalNotification {
                     jsNotification.put("schedule", jsSchedule)
                 }
                 jsNotification.put("extra", notification.extra)
+                notification.sound?.let { jsNotification.put("sound", it) }
                 notification.badge?.let { jsNotification.put("badge", it) }
                 notification.foreground?.let { jsNotification.put("foreground", it) }
                 jsArray.put(jsNotification)

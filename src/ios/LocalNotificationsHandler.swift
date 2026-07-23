@@ -120,13 +120,18 @@ public class LocalNotificationsHandler: NSObject, UNUserNotificationCenterDelega
         ]
 
         let userInfo = request.content.userInfo
-        if var extra = userInfo["cap_extra"] as? [String: Any] {
-            for (key, value) in extra {
+        // `extra` is documented as `any`, not just an object. Only dictionaries
+        // need per-key Date normalization; anything else is passed through as-is
+        // rather than being silently dropped.
+        if var extraDict = userInfo["cap_extra"] as? [String: Any] {
+            for (key, value) in extraDict {
                 if let date = value as? Date {
-                    extra[key] = ISO8601DateFormatter().string(from: date)
+                    extraDict[key] = ISO8601DateFormatter().string(from: date)
                 }
             }
-            notification["extra"] = extra
+            notification["extra"] = extraDict
+        } else if let extraValue = userInfo["cap_extra"] {
+            notification["extra"] = extraValue
         }
         if var schedule = userInfo["cap_schedule"] as? [String: Any] {
             if let date = schedule["at"] as? Date {
