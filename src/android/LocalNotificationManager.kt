@@ -393,6 +393,24 @@ class LocalNotificationManager(
         return notificationManager.activeNotifications.any { it.id == id }
     }
 
+    /**
+     * Whether a notification's alarm is still genuinely registered with
+     * AlarmManager. A perpetual (every/on/repeats) schedule's stored record can
+     * outlive its alarm (e.g. after cancel/cancelAll preserves the record so a
+     * still-visible delivered instance keeps showing under TRIGGERED) — this is
+     * the live, authoritative signal for whether it should still count as
+     * SCHEDULED, rather than trusting the stored `every`/`on`/`repeats` fields,
+     * which never change once cancelled.
+     */
+    fun isAlarmActive(id: Int): Boolean {
+        val intent = Intent(context, TimedNotificationPublisher::class.java)
+        var flags = PendingIntent.FLAG_NO_CREATE
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            flags = flags or PendingIntent.FLAG_MUTABLE
+        }
+        return PendingIntent.getBroadcast(context, id, intent, flags) != null
+    }
+
     fun areNotificationsEnabled(): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
 

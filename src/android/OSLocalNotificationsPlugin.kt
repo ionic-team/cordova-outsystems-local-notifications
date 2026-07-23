@@ -301,12 +301,19 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         val notifications = JSONArray()
 
         val all = notificationStorage.getSavedNotifications()
-        // A perpetual (every/on/repeats) schedule is always "scheduled" (it'll fire
-        // again), but once it has fired at least once and is still visible in the
-        // shade, it's ALSO "triggered"
+        // A perpetual (every/on/repeats) schedule is "scheduled" only while its
+        // alarm is genuinely still registered — cancel/cancelAll can leave its
+        // storage record behind (so a still-visible delivered instance keeps
+        // showing under TRIGGERED) without it still being scheduled to fire again.
+        // Once it has fired at least once and is still visible in the shade, it's
+        // ALSO "triggered".
         val activeIds = notificationManager.activeNotifications.map { it.id }.toSet()
         val filtered = when (state) {
-            "SCHEDULED" -> all.filter { !it.isTriggered() }
+            "SCHEDULED" -> all.filter { n ->
+                val perpetual = n.schedule?.isPerpetual() == true
+                val nid = n.id
+                !n.isTriggered() && (!perpetual || (nid != null && manager.isAlarmActive(nid)))
+            }
             "TRIGGERED" -> all.filter { n ->
                 val nid = n.id
                 n.isTriggered() || (n.schedule?.isPerpetual() == true && nid != null && activeIds.contains(nid))
