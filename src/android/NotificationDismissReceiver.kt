@@ -17,7 +17,7 @@ class NotificationDismissReceiver : BroadcastReceiver() {
             return
         }
         val isRemovable = intent.getBooleanExtra(LocalNotificationManager.NOTIFICATION_IS_REMOVABLE_KEY, true)
-        if (isRemovable) {
+        if (isRemovable || !LocalNotificationManager.isAlarmActive(context, intExtra)) {
             NotificationStorage(context).deleteNotification(intExtra.toString())
         }
     }

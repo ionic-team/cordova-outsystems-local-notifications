@@ -246,13 +246,17 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
 
     private fun removeAllDeliveredNotifications(callbackContext: CallbackContext) {
         notificationManager.cancelAll()
-        // Only forget already-triggered, non-perpetual notifications — a perpetual
-        // (every/on/repeats) schedule keeps its storage record so cancel()/cancelAll()
-        // can still find and cancel its OS repeating alarm; dismissing one delivered
-        // instance doesn't end the series.
+        // Forget already-triggered, non-perpetual notifications outright. A
+        // perpetual (every/on/repeats) schedule keeps its storage record only
+        // while its alarm is still genuinely active — cancel()/cancelAll() can
+        // leave a cancelled-but-still-visible perpetual record behind, and once
+        // it's also no longer scheduled to fire again, dismissing it here must
+        // not leave an orphan with no value under either SCHEDULED or TRIGGERED.
         for (idStr in notificationStorage.getSavedNotificationIds()) {
             val existing = notificationStorage.getSavedNotification(idStr)
-            if (existing?.isTriggered() == true) {
+            val id = idStr.toIntOrNull()
+            val perpetual = existing?.schedule?.isPerpetual() == true
+            if (existing?.isTriggered() == true || (perpetual && id != null && !manager.isAlarmActive(id))) {
                 notificationStorage.deleteNotification(idStr)
             }
         }
@@ -268,7 +272,11 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
     private fun removeFromStorageIfRemovable(id: Int) {
         val existing = notificationStorage.getSavedNotification(id.toString())
         val removable = existing?.schedule?.isRemovable() ?: true
-        if (removable) {
+        // A perpetual schedule is never "removable" by shape alone, but once its
+        // alarm has actually been cancelled there's no series left to preserve
+        // the record for — keep it only while genuinely still scheduled.
+        val perpetualAndDead = existing?.schedule?.isPerpetual() == true && !manager.isAlarmActive(id)
+        if (removable || perpetualAndDead) {
             notificationStorage.deleteNotification(id.toString())
         }
     }
@@ -308,17 +316,23 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         // Once it has fired at least once and is still visible in the shade, it's
         // ALSO "triggered".
         val activeIds = notificationManager.activeNotifications.map { it.id }.toSet()
+        val isScheduled = { n: LocalNotification ->
+            val perpetual = n.schedule?.isPerpetual() == true
+            val nid = n.id
+            !n.isTriggered() && (!perpetual || (nid != null && manager.isAlarmActive(nid)))
+        }
+        val isTriggered = { n: LocalNotification ->
+            val nid = n.id
+            n.isTriggered() || (n.schedule?.isPerpetual() == true && nid != null && activeIds.contains(nid))
+        }
+        // No filter = everything valid, i.e. the union of SCHEDULED and
+        // TRIGGERED — not raw storage. A record can outlive both (e.g. a
+        // perpetual schedule that was cancelled while still visible, then
+        // dismissed) and must not resurface here either.
         val filtered = when (state) {
-            "SCHEDULED" -> all.filter { n ->
-                val perpetual = n.schedule?.isPerpetual() == true
-                val nid = n.id
-                !n.isTriggered() && (!perpetual || (nid != null && manager.isAlarmActive(nid)))
-            }
-            "TRIGGERED" -> all.filter { n ->
-                val nid = n.id
-                n.isTriggered() || (n.schedule?.isPerpetual() == true && nid != null && activeIds.contains(nid))
-            }
-            else -> all
+            "SCHEDULED" -> all.filter(isScheduled)
+            "TRIGGERED" -> all.filter(isTriggered)
+            else -> all.filter { n -> isScheduled(n) || isTriggered(n) }
         }
         val result = LocalNotification.buildLocalNotificationPendingList(filtered)
         appendNotifications(notifications, result.optJSONArray("notifications"))
