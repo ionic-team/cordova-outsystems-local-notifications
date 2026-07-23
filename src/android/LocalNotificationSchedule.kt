@@ -59,6 +59,9 @@ class LocalNotificationSchedule {
 
     fun isRepeating(): Boolean = repeats == true
 
+    /** Whether this schedule keeps firing indefinitely (never settles into a final "triggered" state). */
+    fun isPerpetual(): Boolean = every != null || on != null || isRepeating()
+
     fun isRemovable(): Boolean {
         if (every == null && on == null) {
             return if (at != null) !isRepeating() else true

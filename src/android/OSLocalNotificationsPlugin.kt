@@ -1,14 +1,12 @@
 package com.outsystems.plugins.localnotifications
 
 import android.app.AlarmManager
-import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM
-import android.service.notification.StatusBarNotification
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.CordovaPlugin
 import org.apache.cordova.PermissionHelper
@@ -263,12 +261,8 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
             val nid = n.id
             if (nid != null && ids.contains(nid)) matched.add(n)
         }
-        val scheduled = LocalNotification.buildLocalNotificationPendingList(matched)
-        appendNotifications(notifications, scheduled.optJSONArray("notifications"))
-
-        for (notif in notificationManager.activeNotifications) {
-            if (ids.contains(notif.id)) notifications.put(buildDeliveredNotificationJSObject(notif))
-        }
+        val matchedResult = LocalNotification.buildLocalNotificationPendingList(matched)
+        appendNotifications(notifications, matchedResult.optJSONArray("notifications"))
 
         resolveNotifications(callbackContext, notifications)
     }
@@ -278,15 +272,14 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         val state = if (options != null && !options.isNull("state")) options.optString("state") else null
         val notifications = JSONArray()
 
-        if (state == null || state == "SCHEDULED") {
-            val scheduled = LocalNotification.buildLocalNotificationPendingList(notificationStorage.getSavedNotifications())
-            appendNotifications(notifications, scheduled.optJSONArray("notifications"))
+        val all = notificationStorage.getSavedNotifications()
+        val filtered = when (state) {
+            "SCHEDULED" -> all.filter { !it.isTriggered() }
+            "TRIGGERED" -> all.filter { it.isTriggered() }
+            else -> all
         }
-        if (state == null || state == "TRIGGERED") {
-            for (notif in notificationManager.activeNotifications) {
-                notifications.put(buildDeliveredNotificationJSObject(notif))
-            }
-        }
+        val result = LocalNotification.buildLocalNotificationPendingList(filtered)
+        appendNotifications(notifications, result.optJSONArray("notifications"))
 
         resolveNotifications(callbackContext, notifications)
     }
@@ -295,20 +288,6 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         val result = JSONObject()
         result.put("notifications", notifications)
         callbackContext.success(result)
-    }
-
-    private fun buildDeliveredNotificationJSObject(notif: StatusBarNotification): JSONObject {
-        val jsNotif = JSONObject()
-        jsNotif.put("id", notif.id)
-        jsNotif.put("tag", notif.tag)
-        val notification = notif.notification
-        if (notification != null) {
-            jsNotif.put("title", notification.extras.getCharSequence(Notification.EXTRA_TITLE))
-            jsNotif.put("body", notification.extras.getCharSequence(Notification.EXTRA_TEXT))
-            jsNotif.put("group", notification.group)
-            jsNotif.put("groupSummary", 0 != (notification.flags and Notification.FLAG_GROUP_SUMMARY))
-        }
-        return jsNotif
     }
 
     private fun parseIds(idsArray: JSONArray?): List<Int>? {
