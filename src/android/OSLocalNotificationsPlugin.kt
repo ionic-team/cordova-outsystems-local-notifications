@@ -225,6 +225,7 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
             val tag = if (notif.isNull("tag")) null else notif.optString("tag")
             val id = notif.optInt("id")
             if (tag == null) notificationManager.cancel(id) else notificationManager.cancel(tag, id)
+            removeFromStorageIfRemovable(id)
         }
         callbackContext.success()
     }
@@ -236,13 +237,40 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
             callbackContext.error(LocalNotificationsError.MISSING_IDS.toJson())
             return
         }
-        for (id in ids) notificationManager.cancel(id)
+        for (id in ids) {
+            notificationManager.cancel(id)
+            removeFromStorageIfRemovable(id)
+        }
         callbackContext.success()
     }
 
     private fun removeAllDeliveredNotifications(callbackContext: CallbackContext) {
         notificationManager.cancelAll()
+        // Only forget already-triggered, non-perpetual notifications — a perpetual
+        // (every/on/repeats) schedule keeps its storage record so cancel()/cancelAll()
+        // can still find and cancel its OS repeating alarm; dismissing one delivered
+        // instance doesn't end the series.
+        for (idStr in notificationStorage.getSavedNotificationIds()) {
+            val existing = notificationStorage.getSavedNotification(idStr)
+            if (existing?.isTriggered() == true) {
+                notificationStorage.deleteNotification(idStr)
+            }
+        }
         callbackContext.success()
+    }
+
+    /**
+     * Forget a delivered notification's storage record, unless it's part of a
+     * perpetual (every/on/repeats) schedule — matching the dismiss-receiver's
+     * isRemovable() rule, so clearing one delivered instance never orphans a
+     * still-active repeating alarm.
+     */
+    private fun removeFromStorageIfRemovable(id: Int) {
+        val existing = notificationStorage.getSavedNotification(id.toString())
+        val removable = existing?.schedule?.isRemovable() ?: true
+        if (removable) {
+            notificationStorage.deleteNotification(id.toString())
+        }
     }
 
     // --- Queries ---
