@@ -40,10 +40,9 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
     private var pendingArgs: JSONArray? = null
     private var pendingIsUpdate: Boolean = false
 
-    // Pending schedule awaiting the exact-alarm settings screen (resumes in onResume).
+    // Pending schedule awaiting the exact-alarm settings screen (resumes in onActivityResult).
     private var pendingExactCall: CallbackContext? = null
     private var pendingExactArgs: JSONArray? = null
-    private var requestingExactAlarm: Boolean = false
 
     override fun pluginInitialize() {
         super.pluginInitialize()
@@ -119,12 +118,12 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         if (honorExact && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExactAlarms()) {
             pendingExactArgs = args
             pendingExactCall = callbackContext
-            requestingExactAlarm = true
-            // Deep-link straight to this app's exact-alarm toggle (matches the
-            // Capacitor plugin), instead of the general "Alarms & reminders" list.
+            // Go to this app's exact-alarm toggle
             cordova.activity.runOnUiThread {
-                cordova.activity.startActivity(
-                    Intent(ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + cordova.activity.packageName))
+                cordova.startActivityForResult(
+                    this,
+                    Intent(ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + cordova.activity.packageName)),
+                    EXACT_ALARM_REQUEST_CODE
                 )
             }
             return
@@ -132,18 +131,17 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         performScheduleNow(args, callbackContext, onlyExisting)
     }
 
-    override fun onResume(multitasking: Boolean) {
-        super.onResume(multitasking)
-        // Returned from the "Alarms & reminders" settings screen: schedule now.
-        if (requestingExactAlarm) {
-            requestingExactAlarm = false
-            val args = pendingExactArgs
-            val call = pendingExactCall
-            pendingExactArgs = null
-            pendingExactCall = null
-            if (args != null && call != null) {
-                cordova.threadPool.execute { performScheduleNow(args, call, false) }
-            }
+    override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
+        super.onActivityResult(requestCode, resultCode, intent)
+        if (requestCode != EXACT_ALARM_REQUEST_CODE) return
+        // Returned from the "Alarms & reminders" settings screen: schedule now
+        // (exact if granted, otherwise inexact with a warning).
+        val args = pendingExactArgs
+        val call = pendingExactCall
+        pendingExactArgs = null
+        pendingExactCall = null
+        if (args != null && call != null) {
+            cordova.threadPool.execute { performScheduleNow(args, call, false) }
         }
     }
 
@@ -371,6 +369,7 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
     companion object {
         private const val POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
         private const val SCHEDULE_PERMISSION_CODE = 43334
+        private const val EXACT_ALARM_REQUEST_CODE = 43335
 
         private const val EVENT_RECEIVED = "localNotificationReceived"
         private const val EVENT_ACTION_PERFORMED = "localNotificationActionPerformed"
