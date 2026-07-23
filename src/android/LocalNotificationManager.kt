@@ -130,7 +130,7 @@ class LocalNotificationManager(
         }
         for (localNotification in localNotifications) {
             val id = localNotification.id ?: throw LocalNotificationsError.MISSING_IDENTIFIER.toException()
-            // Reject a past scheduled time (parity with iOS and the Capacitor plugin; no silent drop).
+            // Reject a past scheduled time
             val at = localNotification.schedule?.at
             if (at != null && at.time < Date().time) {
                 throw LocalNotificationsError.SCHEDULE_IN_PAST.toException()
@@ -338,10 +338,15 @@ class LocalNotificationManager(
         if (notificationsToCancel != null) {
             for (id in notificationsToCancel) {
                 cancelTimerForNotification(id)
-                // Already-triggered (delivered) notifications keep their storage record so
-                // they remain queryable via getByIds()/getAll(TRIGGERED) — cancel only affects pending ones
+                // Already-delivered notifications keep their storage record so they remain
+                // queryable via getByIds()/getAll(TRIGGERED) — cancel only affects pending
+                // ones. A perpetual (every/on/repeats) schedule is never
+                // "isTriggered" by itself — it's classified as delivered only while its
+                // current instance is actually visible in the shade — so check that too.
                 val existing = storage.getSavedNotification(id.toString())
-                if (existing == null || !existing.isTriggered()) {
+                val isDelivered = existing != null &&
+                    (existing.isTriggered() || (existing.schedule?.isPerpetual() == true && isCurrentlyVisible(id)))
+                if (!isDelivered) {
                     storage.deleteNotification(id.toString())
                 }
             }
@@ -355,10 +360,11 @@ class LocalNotificationManager(
         for (idStr in storage.getSavedNotificationIds()) {
             val id = idStr.toIntOrNull() ?: continue
             cancelTimerForNotification(id)
-            // Already-triggered (delivered) notifications keep their storage record so they
-            // remain queryable via getByIds()/getAll(TRIGGERED) — cancelAll only affects pending ones
+            // Same delivered-notification exception as cancel() above.
             val existing = storage.getSavedNotification(idStr)
-            if (existing == null || !existing.isTriggered()) {
+            val isDelivered = existing != null &&
+                (existing.isTriggered() || (existing.schedule?.isPerpetual() == true && isCurrentlyVisible(id)))
+            if (!isDelivered) {
                 storage.deleteNotification(idStr)
             }
         }
@@ -379,6 +385,12 @@ class LocalNotificationManager(
 
     private fun dismissVisibleNotification(notificationId: Int) {
         NotificationManagerCompat.from(context).cancel(notificationId)
+    }
+
+    /** Whether a notification id is currently showing in the notification shade. */
+    private fun isCurrentlyVisible(id: Int): Boolean {
+        val notificationManager = context.getSystemService(android.app.NotificationManager::class.java)
+        return notificationManager.activeNotifications.any { it.id == id }
     }
 
     fun areNotificationsEnabled(): Boolean =
