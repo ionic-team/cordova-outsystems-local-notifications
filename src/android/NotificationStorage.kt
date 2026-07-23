@@ -81,6 +81,20 @@ class NotificationStorage(private val context: Context) {
         editor.apply()
     }
 
+    /**
+     * Mark a stored notification cancelled in place, without disturbing any of
+     * its other persisted fields. Used when cancel()/cancelAll() preserves a
+     * still-delivered record instead of deleting it, so later classification
+     * and reboot-restore can tell it's no longer actually scheduled.
+     */
+    fun setCancelled(id: String, cancelled: Boolean) {
+        val json = getSavedNotificationAsJSObject(id) ?: return
+        json.put("cancelled", cancelled)
+        val editor = getStorage(NOTIFICATION_STORE_ID).edit()
+        editor.putString(id, json.toString())
+        editor.apply()
+    }
+
     private fun getStorage(key: String): SharedPreferences =
         context.getSharedPreferences(key, Context.MODE_PRIVATE)
 

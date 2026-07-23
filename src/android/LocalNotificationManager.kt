@@ -47,8 +47,8 @@ class LocalNotificationManager(
             Log.d(LOG_TAG, "Activity started without notification attached")
             return null
         }
-        val isRemovable = data.getBooleanExtra(NOTIFICATION_IS_REMOVABLE_KEY, true)
-        if (isRemovable || !isAlarmActive(notificationId)) {
+        val existing = notificationStorage.getSavedNotification(notificationId.toString())
+        if (isSafeToForget(existing)) {
             notificationStorage.deleteNotification(notificationId.toString())
         }
         val dataJson = JSONObject()
@@ -236,8 +236,6 @@ class LocalNotificationManager(
         dismissIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         dismissIntent.putExtra(NOTIFICATION_INTENT_KEY, id)
         dismissIntent.putExtra(ACTION_INTENT_KEY, "dismiss")
-        val schedule = localNotification.schedule
-        dismissIntent.putExtra(NOTIFICATION_IS_REMOVABLE_KEY, schedule == null || schedule.isRemovable())
         var deleteFlags = 0
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             deleteFlags = PendingIntent.FLAG_MUTABLE
@@ -258,8 +256,6 @@ class LocalNotificationManager(
         intent.putExtra(NOTIFICATION_INTENT_KEY, localNotification.id)
         intent.putExtra(ACTION_INTENT_KEY, action)
         intent.putExtra(NOTIFICATION_OBJ_INTENT_KEY, localNotification.source)
-        val schedule = localNotification.schedule
-        intent.putExtra(NOTIFICATION_IS_REMOVABLE_KEY, schedule == null || schedule.isRemovable())
         return intent
     }
 
@@ -336,17 +332,18 @@ class LocalNotificationManager(
 
     fun cancel(notificationsToCancel: List<Int>?) {
         if (notificationsToCancel != null) {
+            val activeIds = currentlyVisibleIds()
             for (id in notificationsToCancel) {
                 cancelTimerForNotification(id)
                 // Already-delivered notifications keep their storage record so they remain
-                // queryable via getByIds()/getAll(TRIGGERED) — cancel only affects pending
-                // ones. A perpetual (every/on/repeats) schedule is never
-                // "isTriggered" by itself — it's classified as delivered only while its
-                // current instance is actually visible in the shade — so check that too.
+                // queryable via getByIds()/getAll(TRIGGERED) — cancel only affects pending ones.
+                // Mark them cancelled so classification (and reboot-restore) can tell they're
+                // no longer actually scheduled even once the alarm itself is gone.
                 val existing = storage.getSavedNotification(id.toString())
-                val isDelivered = existing != null &&
-                    (existing.isTriggered() || (existing.schedule?.isPerpetual() == true && isCurrentlyVisible(id)))
-                if (!isDelivered) {
+                val isDelivered = existing != null && isCurrentlyTriggered(existing, activeIds)
+                if (isDelivered) {
+                    storage.setCancelled(id.toString(), true)
+                } else {
                     storage.deleteNotification(id.toString())
                 }
             }
@@ -357,14 +354,16 @@ class LocalNotificationManager(
      * Cancel all pending (scheduled) notifications.
      */
     fun cancelAll() {
+        val activeIds = currentlyVisibleIds()
         for (idStr in storage.getSavedNotificationIds()) {
             val id = idStr.toIntOrNull() ?: continue
             cancelTimerForNotification(id)
             // Same delivered-notification exception as cancel() above.
             val existing = storage.getSavedNotification(idStr)
-            val isDelivered = existing != null &&
-                (existing.isTriggered() || (existing.schedule?.isPerpetual() == true && isCurrentlyVisible(id)))
-            if (!isDelivered) {
+            val isDelivered = existing != null && isCurrentlyTriggered(existing, activeIds)
+            if (isDelivered) {
+                storage.setCancelled(idStr, true)
+            } else {
                 storage.deleteNotification(idStr)
             }
         }
@@ -372,9 +371,9 @@ class LocalNotificationManager(
 
     private fun cancelTimerForNotification(notificationId: Int) {
         val intent = Intent(context, TimedNotificationPublisher::class.java)
-        var flags = 0
+        var flags = PendingIntent.FLAG_NO_CREATE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            flags = PendingIntent.FLAG_MUTABLE
+            flags = flags or PendingIntent.FLAG_MUTABLE
         }
         val pi = PendingIntent.getBroadcast(context, notificationId, intent, flags)
         if (pi != null) {
@@ -388,22 +387,33 @@ class LocalNotificationManager(
         NotificationManagerCompat.from(context).cancel(notificationId)
     }
 
-    /** Whether a notification id is currently showing in the notification shade. */
-    private fun isCurrentlyVisible(id: Int): Boolean {
+    /** Live set of notification ids currently showing in the notification shade. */
+    fun currentlyVisibleIds(): Set<Int> {
         val notificationManager = context.getSystemService(android.app.NotificationManager::class.java)
-        return notificationManager.activeNotifications.any { it.id == id }
+        return notificationManager.activeNotifications.map { it.id }.toSet()
     }
 
     /**
-     * Whether a notification's alarm is still genuinely registered with
-     * AlarmManager. A perpetual (every/on/repeats) schedule's stored record can
-     * outlive its alarm (e.g. after cancel/cancelAll preserves the record so a
-     * still-visible delivered instance keeps showing under TRIGGERED) — this is
-     * the live, authoritative signal for whether it should still count as
-     * SCHEDULED, rather than trusting the stored `every`/`on`/`repeats` fields,
-     * which never change once cancelled.
+     * Whether [n] currently belongs in the externally-visible SCHEDULED state:
+     * not yet triggered, and — if perpetual — not cancelled. `cancelled` is the
+     * authoritative signal for a perpetual schedule rather than the live alarm
+     * registration, since that doesn't survive a reboot to say the same thing.
      */
-    fun isAlarmActive(id: Int): Boolean = isAlarmActive(context, id)
+    fun isCurrentlyScheduled(n: LocalNotification): Boolean {
+        if (n.schedule?.isPerpetual() == true) return !n.cancelled
+        return !n.isTriggered()
+    }
+
+    /**
+     * Whether [n] currently belongs in the externally-visible TRIGGERED state:
+     * already fired and won't repeat (one-shot, past due), or perpetual with its
+     * current instance still showing in the notification shade. [activeIds] is
+     * the live set of currently-visible notification ids (see [currentlyVisibleIds]).
+     */
+    fun isCurrentlyTriggered(n: LocalNotification, activeIds: Set<Int>): Boolean {
+        val nid = n.id
+        return n.isTriggered() || (n.schedule?.isPerpetual() == true && nid != null && activeIds.contains(nid))
+    }
 
     fun areNotificationsEnabled(): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
@@ -446,7 +456,6 @@ class LocalNotificationManager(
         const val NOTIFICATION_INTENT_KEY = "LocalNotificationId"
         const val NOTIFICATION_OBJ_INTENT_KEY = "LocalNotficationObject"
         const val ACTION_INTENT_KEY = "LocalNotificationUserAction"
-        const val NOTIFICATION_IS_REMOVABLE_KEY = "LocalNotificationRepeating"
         const val REMOTE_INPUT_KEY = "LocalNotificationRemoteInput"
         const val DEFAULT_NOTIFICATION_CHANNEL_ID = "default"
 
@@ -457,23 +466,17 @@ class LocalNotificationManager(
         private var defaultSmallIconID = AssetUtil.RESOURCE_ID_ZERO_VALUE
 
         /**
-         * Whether a notification's alarm is still genuinely registered with
-         * AlarmManager. A perpetual (every/on/repeats) schedule's stored record can
-         * outlive its alarm (e.g. after cancel/cancelAll preserves the record so a
-         * still-visible delivered instance keeps showing under TRIGGERED) — this is
-         * the live, authoritative signal for whether it should still count as
-         * SCHEDULED, rather than trusting the stored `every`/`on`/`repeats` fields,
-         * which never change once cancelled. Static so callers without a full
-         * LocalNotificationManager instance (dismiss receiver, action handler) can
+         * Whether [n]'s storage record is safe to delete. A one-shot notification
+         * is safe only once it has actually fired — never before, so clearing it
+         * can't silently cancel a still-pending notification. A perpetual schedule
+         * is safe only once it's been marked cancelled — there's no series left to
+         * preserve the record for. Pure data check (no context needed), so callers
+         * without a full LocalNotificationManager instance (dismiss receiver) can
          * use it too.
          */
-        fun isAlarmActive(context: Context, id: Int): Boolean {
-            val intent = Intent(context, TimedNotificationPublisher::class.java)
-            var flags = PendingIntent.FLAG_NO_CREATE
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                flags = flags or PendingIntent.FLAG_MUTABLE
-            }
-            return PendingIntent.getBroadcast(context, id, intent, flags) != null
+        fun isSafeToForget(n: LocalNotification?): Boolean {
+            if (n == null) return true
+            return if (n.schedule?.isPerpetual() == true) n.cancelled else n.isTriggered()
         }
     }
 }

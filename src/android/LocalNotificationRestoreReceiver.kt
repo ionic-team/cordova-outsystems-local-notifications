@@ -26,6 +26,15 @@ class LocalNotificationRestoreReceiver : BroadcastReceiver() {
 
             val schedule = notification.schedule
             if (schedule != null) {
+                if (schedule.isPerpetual() && notification.cancelled) {
+                    // Cancelled before reboot while its current instance was still
+                    // visible (preserved for TRIGGERED display) — the shade is wiped
+                    // on boot, so there's nothing left to preserve it for, and
+                    // rescheduling would resurrect an alarm the user explicitly
+                    // cancelled.
+                    storage.deleteNotification(id)
+                    continue
+                }
                 val at = schedule.at
                 if (at != null && at.before(Date())) {
                     val newDateTime = Date().time + 15 * 1000
