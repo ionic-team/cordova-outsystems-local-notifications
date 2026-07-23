@@ -273,9 +273,16 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         val notifications = JSONArray()
 
         val all = notificationStorage.getSavedNotifications()
+        // A perpetual (every/on/repeats) schedule is always "scheduled" (it'll fire
+        // again), but once it has fired at least once and is still visible in the
+        // shade, it's ALSO "triggered"
+        val activeIds = notificationManager.activeNotifications.map { it.id }.toSet()
         val filtered = when (state) {
             "SCHEDULED" -> all.filter { !it.isTriggered() }
-            "TRIGGERED" -> all.filter { it.isTriggered() }
+            "TRIGGERED" -> all.filter { n ->
+                val nid = n.id
+                n.isTriggered() || (n.schedule?.isPerpetual() == true && nid != null && activeIds.contains(nid))
+            }
             else -> all
         }
         val result = LocalNotification.buildLocalNotificationPendingList(filtered)
