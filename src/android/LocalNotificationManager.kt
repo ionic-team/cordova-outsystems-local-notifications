@@ -338,7 +338,12 @@ class LocalNotificationManager(
         if (notificationsToCancel != null) {
             for (id in notificationsToCancel) {
                 cancelTimerForNotification(id)
-                storage.deleteNotification(id.toString())
+                // Already-triggered (delivered) notifications keep their storage record so
+                // they remain queryable via getByIds()/getAll(TRIGGERED) — cancel only affects pending ones
+                val existing = storage.getSavedNotification(id.toString())
+                if (existing == null || !existing.isTriggered()) {
+                    storage.deleteNotification(id.toString())
+                }
             }
         }
     }
@@ -350,7 +355,12 @@ class LocalNotificationManager(
         for (idStr in storage.getSavedNotificationIds()) {
             val id = idStr.toIntOrNull() ?: continue
             cancelTimerForNotification(id)
-            storage.deleteNotification(idStr)
+            // Already-triggered (delivered) notifications keep their storage record so they
+            // remain queryable via getByIds()/getAll(TRIGGERED) — cancelAll only affects pending ones
+            val existing = storage.getSavedNotification(idStr)
+            if (existing == null || !existing.isTriggered()) {
+                storage.deleteNotification(idStr)
+            }
         }
     }
 
