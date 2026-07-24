@@ -122,7 +122,7 @@ internal object LegacyNotificationMigrator {
         }
 
         if (json.has("data") && !json.isNull("data")) {
-            built.put("extra", json.get("data"))
+            built.put("extra", restoreKatzerData(json.get("data")))
         }
 
         built.put("schedule", schedule)
@@ -166,5 +166,22 @@ internal object LegacyNotificationMigrator {
         JSONObject(raw)
     } catch (e: JSONException) {
         null
+    }
+
+    /**
+     * katzer's own JS bridge always runs `data` through `JSON.stringify`
+     * before it ever reaches native, so a plain value like the string "ada"
+     * is persisted as the *string* `"ada"` (quotes included as content) —
+     * not a raw value like our own `extra` field expects. Undo that one
+     * layer of encoding so migrated data matches what a normally-scheduled
+     * notification's `extra` looks like, rather than double-encoding it.
+     */
+    private fun restoreKatzerData(raw: Any): Any {
+        if (raw !is String) return raw
+        return try {
+            org.json.JSONTokener(raw).nextValue()
+        } catch (e: JSONException) {
+            raw // wasn't actually JSON-encoded after all — keep as-is
+        }
     }
 }
