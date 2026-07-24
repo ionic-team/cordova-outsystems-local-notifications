@@ -50,6 +50,7 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         manager = LocalNotificationManager(notificationStorage, cordova.activity, context, emptyMap())
         manager.createNotificationChannel()
         notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        LegacyNotificationMigrator.run(context, notificationStorage, manager)
 
         // Capture a cold-start notification tap, if any.
         captureActionPerformed(cordova.activity.intent)
