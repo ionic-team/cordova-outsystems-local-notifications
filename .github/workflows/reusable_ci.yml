@@ -1,0 +1,25 @@
+name: (re-usable) Continuous Integration Checks
+
+on:
+  workflow_call:
+    secrets:
+      THE_GH_RELEASE_TOKEN:
+        required: false
+
+jobs:
+  # Reference repos with a TS/vite build step check for README drift here
+  # (npm run build regenerates docs, then diff against the committed README).
+  # This plugin has no docgen/build step — its README is hand-maintained — so
+  # this validates the one thing that actually can silently break: plugin.xml
+  # being malformed.
+  validate-plugin-xml:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.THE_GH_RELEASE_TOKEN || github.token }}
+
+      - name: 'Validate plugin.xml is well-formed'
+        run: xmllint --noout plugin.xml
