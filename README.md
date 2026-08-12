@@ -36,9 +36,12 @@ additive **`badge`** (iOS icon badge / Android `setNumber`), **`foreground`**
 (iOS foreground presentation / Android heads-up priority), and the
 Android-only **`isExactNotification`** (default `true`; set `false` to always
 schedule this notification as an inexact alarm) / **`isExactMandatory`**
-(default `false`; if `true` and the exact-alarm permission is denied, the whole
-`schedule()`/`update()` call is rejected instead of silently falling back to an
-inexact alarm).
+(default `false`; only enforced on `schedule()` — if `true` there and the
+exact-alarm permission is denied, the whole call is rejected instead of
+falling back to an inexact alarm; has no effect on `update()`, matching the
+legacy plugin). A `schedule()` call that falls back to inexact (permission
+denied, not mandatory) returns a non-fatal `warning`; `update()` never does,
+also matching the legacy plugin.
 
 ### Permissions
 

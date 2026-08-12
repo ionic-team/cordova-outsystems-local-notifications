@@ -111,18 +111,17 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !PermissionHelper.hasPermission(this, POST_NOTIFICATIONS)
 
     private fun doSchedule(args: JSONArray, callbackContext: CallbackContext, onlyExisting: Boolean) {
-        // The exact-alarm prompt only applies to schedule (not update). Shown
-        // when the caller opts in with exactAlarm:true, OR when any notification
-        // in this batch requires an exact alarm (isExactMandatory:true) — the
-        // mandatory flag needs a chance to let the user grant the permission
-        // before performScheduleNow rejects the call outright.
+        // The exact-alarm prompt only applies to schedule (not update), and only
+        // when any notification in this batch requires an exact alarm
+        // (isExactMandatory:true) — it needs a chance to let the user grant the
+        // permission before performScheduleNow rejects the call outright.
         val honorExact = if (onlyExisting) {
             false
         } else {
             try {
                 val options = args.optJSONObject(0)
                 val notifications = LocalNotification.buildNotificationList(options?.optJSONArray("notifications"))
-                optExactAlarm(args) || notifications.any { it.isExactNotification && it.isExactMandatory }
+                notifications.any { it.isExactNotification && it.isExactMandatory }
             } catch (ex: LocalNotificationsException) {
                 callbackContext.error(ex.toJson())
                 return
@@ -148,8 +147,7 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         super.onActivityResult(requestCode, resultCode, intent)
         if (requestCode != EXACT_ALARM_REQUEST_CODE) return
         // Returned from the "Alarms & reminders" settings screen: schedule now
-        // (exact if granted; otherwise inexact with a warning, or rejected if a
-        // mandatory notification is still denied).
+        // (exact if granted, otherwise rejected since the notification was mandatory).
         val args = pendingExactArgs
         val call = pendingExactCall
         pendingExactArgs = null
@@ -193,21 +191,17 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
                 jsArray.put(JSONObject().put("id", ids.getInt(i)))
             }
             result.put("notifications", jsArray)
-
-            // exactAlarm was requested but still not permitted -> inexact fallback.
-            val honorExact = !onlyExisting && optExactAlarm(args)
-            if (honorExact && !canScheduleExactAlarms()) {
+            // Schedule only, matching the legacy plugin (update() never carries this
+            // signal). Any exact-wanting notification that got silently downgraded to
+            // inexact (permission denied, not mandatory — mandatory already rejected
+            // the whole call above) is surfaced here as a non-fatal warning.
+            if (!onlyExisting && !canScheduleExactAlarms() && localNotifications.any { it.isExactNotification }) {
                 result.put("warning", LocalNotificationsError.SCHEDULED_INEXACT.toJson())
             }
             callbackContext.success(result)
         } catch (ex: LocalNotificationsException) {
             callbackContext.error(ex.toJson())
         }
-    }
-
-    private fun optExactAlarm(args: JSONArray): Boolean {
-        val options = args.optJSONObject(0)
-        return options != null && options.optBoolean("exactAlarm", false)
     }
 
     private fun canScheduleExactAlarms(): Boolean {
