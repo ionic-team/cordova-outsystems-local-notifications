@@ -111,6 +111,15 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !PermissionHelper.hasPermission(this, POST_NOTIFICATIONS)
 
     private fun doSchedule(args: JSONArray, callbackContext: CallbackContext, onlyExisting: Boolean) {
+        // Bail out before ever considering the exact-alarm prompt if notifications
+        // are disabled outright (e.g. POST_NOTIFICATIONS was just denied) — that
+        // permission is unusable regardless of exact-alarm state, so there's no
+        // point prompting for it first. manager.schedule() re-checks this anyway;
+        // this just avoids showing a moot prompt before an inevitable rejection.
+        if (!manager.areNotificationsEnabled()) {
+            callbackContext.error(LocalNotificationsError.NOTIFICATIONS_DISABLED.toJson())
+            return
+        }
         // The exact-alarm prompt only applies to schedule (not update), and only
         // when any notification in this batch wants an exact alarm at all
         // (isExactNotification:true, the default) — independent of whether it's
