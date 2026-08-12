@@ -34,14 +34,16 @@ JS namespace: `cordova.plugins.LocalNotifications`.
 `schedule.{at,every,on,count,repeats,allowWhileIdle}`, `sound`, `extra`, and the
 additive **`badge`** (iOS icon badge / Android `setNumber`), **`foreground`**
 (iOS foreground presentation / Android heads-up priority), and the
-Android-only **`isExactNotification`** (default `true`; set `false` to always
-schedule this notification as an inexact alarm) / **`isExactMandatory`**
-(default `false`; only enforced on `schedule()` — if `true` there and the
-exact-alarm permission is denied, the whole call is rejected instead of
-falling back to an inexact alarm; has no effect on `update()`, matching the
-legacy plugin). A `schedule()` call that falls back to inexact (permission
-denied, not mandatory) returns a non-fatal `warning`; `update()` never does,
-also matching the legacy plugin.
+Android-only **`isExactNotification`** (default `true`; on `schedule()`, if the
+app isn't yet allowed to schedule exact alarms the "Alarms & reminders"
+settings screen is opened so the user can grant it, regardless of
+`isExactMandatory`; set `false` to always schedule this notification as an
+inexact alarm without prompting) / **`isExactMandatory`** (default `false`;
+only enforced on `schedule()` — if `true` there and the user still declines,
+the whole call is rejected instead of falling back to an inexact alarm; has no
+effect on `update()`, matching the legacy plugin). A `schedule()` call that
+falls back to inexact (permission denied, not mandatory) returns a non-fatal
+`warning`; `update()` never does, also matching the legacy plugin.
 
 ### Permissions
 

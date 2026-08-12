@@ -112,16 +112,18 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
 
     private fun doSchedule(args: JSONArray, callbackContext: CallbackContext, onlyExisting: Boolean) {
         // The exact-alarm prompt only applies to schedule (not update), and only
-        // when any notification in this batch requires an exact alarm
-        // (isExactMandatory:true) — it needs a chance to let the user grant the
-        // permission before performScheduleNow rejects the call outright.
+        // when any notification in this batch wants an exact alarm at all
+        // (isExactNotification:true, the default) — independent of whether it's
+        // mandatory. Mandatory only decides what happens afterward if the user
+        // still declines: performScheduleNow rejects the call for a mandatory
+        // notification, or falls back to inexact (with a warning) otherwise.
         val honorExact = if (onlyExisting) {
             false
         } else {
             try {
                 val options = args.optJSONObject(0)
                 val notifications = LocalNotification.buildNotificationList(options?.optJSONArray("notifications"))
-                notifications.any { it.isExactNotification && it.isExactMandatory }
+                notifications.any { it.isExactNotification }
             } catch (ex: LocalNotificationsException) {
                 callbackContext.error(ex.toJson())
                 return
@@ -147,7 +149,8 @@ class OSLocalNotificationsPlugin : CordovaPlugin() {
         super.onActivityResult(requestCode, resultCode, intent)
         if (requestCode != EXACT_ALARM_REQUEST_CODE) return
         // Returned from the "Alarms & reminders" settings screen: schedule now
-        // (exact if granted, otherwise rejected since the notification was mandatory).
+        // (exact if granted; otherwise rejected if a mandatory notification is
+        // still denied, or falls back to inexact with a warning otherwise).
         val args = pendingExactArgs
         val call = pendingExactCall
         pendingExactArgs = null
