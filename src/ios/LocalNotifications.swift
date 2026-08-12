@@ -160,7 +160,12 @@ public class LocalNotifications {
             let dateInfo = Calendar.current.dateComponents(in: TimeZone.current, from: at)
 
             if dateInfo.date! < Date() {
-                throw LocalNotificationsError.scheduleInPast
+                // Already in the past — deliver immediately (a nil trigger delivers
+                // right away) instead of rejecting. For `repeats`, the series isn't
+                // re-registered afterward: the only interval this feature has is the
+                // gap between call time and `at`, and once `at` is stale that gap is
+                // gone — there's no way to recover what cadence was intended.
+                return nil
             }
 
             let dateInterval = DateInterval(start: Date(), end: dateInfo.date!)

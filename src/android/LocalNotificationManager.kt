@@ -130,11 +130,6 @@ class LocalNotificationManager(
         }
         for (localNotification in localNotifications) {
             val id = localNotification.id ?: throw LocalNotificationsError.MISSING_IDENTIFIER.toException()
-            // Reject a past scheduled time
-            val at = localNotification.schedule?.at
-            if (at != null && at.time < Date().time) {
-                throw LocalNotificationsError.SCHEDULE_IN_PAST.toException()
-            }
             dismissVisibleNotification(id)
             cancelTimerForNotification(id)
             buildNotification(notificationManager, localNotification)
@@ -209,7 +204,17 @@ class LocalNotificationManager(
 
         createActionIntents(localNotification, mBuilder)
         val buildNotification = mBuilder.build()
-        if (localNotification.isScheduled()) {
+        // A one-shot `at` already in the past (isTriggered()) fires immediately
+        // instead of going through AlarmManager for a moment that's already gone —
+        // matching the legacy plugin, which fires it in-process right away rather
+        // than rejecting or silently dropping it. An `at`+repeats anchor already in
+        // the past gets the same immediate catch-up fire, but the series isn't
+        // re-registered afterward: the only interval this feature has is the gap
+        // between call time and `at`, and once `at` is stale that gap is gone —
+        // there's no way to recover what cadence was actually intended.
+        val schedule = localNotification.schedule
+        val isStaleRepeatingAt = schedule?.at != null && schedule.isRepeating() && schedule.at!!.time < Date().time
+        if (localNotification.isScheduled() && !localNotification.isTriggered() && !isStaleRepeatingAt) {
             triggerScheduledNotification(buildNotification, localNotification)
         } else {
             try {
@@ -274,10 +279,9 @@ class LocalNotificationManager(
 
         val at = schedule.at
         if (at != null) {
-            if (at.time < Date().time) {
-                Log.e(LOG_TAG, "Scheduled time must be *after* current time")
-                return
-            }
+            // A stale `at` (one-shot or repeats) never reaches here — buildNotification()
+            // diverts both to an immediate catch-up fire instead. Reachable only with a
+            // still-future `at`, so the interval below is always positive.
             if (schedule.isRepeating()) {
                 val interval = at.time - Date().time
                 alarmManager.setRepeating(AlarmManager.RTC, at.time, interval, pendingIntent)
