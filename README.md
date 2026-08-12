@@ -32,8 +32,13 @@ JS namespace: `cordova.plugins.LocalNotifications`.
 
 `LocalNotificationSchema` fields honoured natively: `id`, `title`, `body`,
 `schedule.{at,every,on,count,repeats,allowWhileIdle}`, `sound`, `extra`, and the
-additive **`badge`** (iOS icon badge / Android `setNumber`) and **`foreground`**
-(iOS foreground presentation / Android heads-up priority).
+additive **`badge`** (iOS icon badge / Android `setNumber`), **`foreground`**
+(iOS foreground presentation / Android heads-up priority), and the
+Android-only **`isExactNotification`** (default `true`; set `false` to always
+schedule this notification as an inexact alarm) / **`isExactMandatory`**
+(default `false`; if `true` and the exact-alarm permission is denied, the whole
+`schedule()`/`update()` call is rejected instead of silently falling back to an
+inexact alarm).
 
 ### Permissions
 
