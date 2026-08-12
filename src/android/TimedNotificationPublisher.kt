@@ -59,11 +59,16 @@ class TimedNotificationPublisher : BroadcastReceiver() {
             flags = flags or PendingIntent.FLAG_MUTABLE
         }
         val pendingIntent = PendingIntent.getBroadcast(context, id, clone, flags)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            Log.w(LOG_TAG, "Exact alarms not allowed in user settings. Notification scheduled with non-exact alarm.")
-            alarmManager.set(AlarmManager.RTC, trigger, pendingIntent)
-        } else {
+        val storedNotification = NotificationStorage(context).getSavedNotificationAsJSObject(id.toString())
+        val wantsExact = storedNotification?.optBoolean("isExactNotification", true) ?: true
+        val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
+        if (wantsExact && canExact) {
             alarmManager.setExact(AlarmManager.RTC, trigger, pendingIntent)
+        } else {
+            if (wantsExact) {
+                Log.w(LOG_TAG, "Exact alarms not allowed in user settings. Notification scheduled with non-exact alarm.")
+            }
+            alarmManager.set(AlarmManager.RTC, trigger, pendingIntent)
         }
         val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
         Log.d(LOG_TAG, "notification " + id + " will next fire at " + sdf.format(Date(trigger)))

@@ -282,7 +282,7 @@ class LocalNotificationManager(
                 val interval = at.time - Date().time
                 alarmManager.setRepeating(AlarmManager.RTC, at.time, interval, pendingIntent)
             } else {
-                setExactIfPossible(alarmManager, schedule, at.time, pendingIntent)
+                setExactIfPossible(alarmManager, request, at.time, pendingIntent)
             }
             return
         }
@@ -302,7 +302,7 @@ class LocalNotificationManager(
             val trigger = on.nextTrigger(Date())
             notificationIntent.putExtra(TimedNotificationPublisher.CRON_KEY, on.toMatchString())
             pendingIntent = PendingIntent.getBroadcast(context, requestId, notificationIntent, flags)
-            setExactIfPossible(alarmManager, schedule, trigger, pendingIntent)
+            setExactIfPossible(alarmManager, request, trigger, pendingIntent)
             val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
             Log.d(LOG_TAG, "notification " + requestId + " will next fire at " + sdf.format(Date(trigger)))
         }
@@ -310,25 +310,33 @@ class LocalNotificationManager(
 
     private fun setExactIfPossible(
         alarmManager: AlarmManager,
-        schedule: LocalNotificationSchedule,
+        localNotification: LocalNotification,
         trigger: Long,
         pendingIntent: PendingIntent
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+        val schedule = localNotification.schedule ?: return
+        val useExact = localNotification.isExactNotification && canScheduleExactAlarms(alarmManager)
+        if (localNotification.isExactNotification && !useExact) {
             Log.w(LOG_TAG, "Exact alarms not allowed in user settings. Notification scheduled with non-exact alarm.")
-            if (schedule.allowWhileIdle()) {
-                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
-            } else {
-                alarmManager.set(AlarmManager.RTC, trigger, pendingIntent)
-            }
-        } else {
+        }
+        if (useExact) {
             if (schedule.allowWhileIdle()) {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
             } else {
                 alarmManager.setExact(AlarmManager.RTC, trigger, pendingIntent)
             }
+        } else {
+            if (schedule.allowWhileIdle()) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+            } else {
+                alarmManager.set(AlarmManager.RTC, trigger, pendingIntent)
+            }
         }
     }
+
+    /** Whether the app can currently schedule exact alarms. Always true below Android 12. */
+    private fun canScheduleExactAlarms(alarmManager: AlarmManager): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
 
     fun cancel(notificationsToCancel: List<Int>?) {
         if (notificationsToCancel != null) {
