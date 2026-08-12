@@ -1,0 +1,20 @@
+name: (re-usable) Continuous Integration Checks
+
+on:
+  workflow_call:
+    secrets:
+      THE_GH_RELEASE_TOKEN:
+        required: false
+
+jobs:
+  build-plugin:
+    runs-on: 'ubuntu-latest'
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.THE_GH_RELEASE_TOKEN || github.token }}
+
+      - name: 'Setup Tools'
+        uses: ./.github/actions/setup-tools
