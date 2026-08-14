@@ -154,7 +154,7 @@ public class LocalNotifications {
         let repeats = schedule["repeats"] as? Bool ?? false
 
         if let at = at {
-            let dateInfo = Calendar.current.dateComponents(in: TimeZone.current, from: at)
+            let dateInfo = Foundation.Calendar.current.dateComponents(in: TimeZone.current, from: at)
 
             if dateInfo.date! < Date() {
                 // Already in the past — deliver immediately (a nil trigger delivers
@@ -206,7 +206,7 @@ public class LocalNotifications {
     }
 
     func getRepeatDateInterval(_ every: String, _ count: Int) -> DateInterval? {
-        let cal = Calendar.current
+        let cal = Foundation.Calendar.current
         let now = Date()
         switch every {
         case "year":
