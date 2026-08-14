@@ -1,94 +1,69 @@
-<?xml version='1.0' encoding='utf-8'?>
-<plugin id="com.outsystems.plugins.localnotifications" version="1.0.0"
-  xmlns="http://apache.org/cordova/ns/plugins/1.0"
-  xmlns:android="http://schemas.android.com/apk/res/android">
-
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<plugin id="com.outsystems.plugins.localnotifications" version="1.0.0" xmlns="http://apache.org/cordova/ns/plugins/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
   <name>OSLocalNotificationsPlugin</name>
   <description>OutSystems Cordova plugin for Local Notifications. Mirrors the shared @capacitor/local-notifications API.</description>
   <license>MIT</license>
   <keywords>cordova,outsystems,local-notifications,notification</keywords>
-
   <js-module name="LocalNotifications" src="www/js/local-notifications.js">
-    <clobbers target="cordova.plugins.LocalNotifications" />
+    <clobbers target="cordova.plugins.LocalNotifications"/>
   </js-module>
-
-  <!-- android -->
   <platform name="android">
     <config-file parent="/*" target="res/xml/config.xml">
       <feature name="OSLocalNotificationsPlugin">
-        <param name="android-package" value="com.outsystems.plugins.localnotifications.OSLocalNotificationsPlugin" />
+        <param name="android-package" value="com.outsystems.plugins.localnotifications.OSLocalNotificationsPlugin"/>
       </feature>
-      <!-- Kotlin must be enabled here (inside config.xml) so MABS applies it. -->
-      <preference name="GradlePluginKotlinEnabled" value="true" />
-      <preference name="GradlePluginKotlinCodeStyle" value="official" />
+      <preference name="GradlePluginKotlinEnabled" value="true"/>
+      <preference name="GradlePluginKotlinCodeStyle" value="official"/>
     </config-file>
-
     <config-file target="AndroidManifest.xml" parent="/manifest/application">
-      <receiver android:name="com.outsystems.plugins.localnotifications.TimedNotificationPublisher" android:exported="false" />
-      <receiver android:name="com.outsystems.plugins.localnotifications.NotificationDismissReceiver" android:exported="false" />
-      <receiver
-        android:name="com.outsystems.plugins.localnotifications.LocalNotificationRestoreReceiver"
-        android:directBootAware="true"
-        android:exported="false">
+      <receiver android:name="com.outsystems.plugins.localnotifications.TimedNotificationPublisher" android:exported="false"/>
+      <receiver android:name="com.outsystems.plugins.localnotifications.NotificationDismissReceiver" android:exported="false"/>
+      <receiver android:name="com.outsystems.plugins.localnotifications.LocalNotificationRestoreReceiver" android:directBootAware="true" android:exported="false">
         <intent-filter>
-          <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
-          <action android:name="android.intent.action.BOOT_COMPLETED" />
-          <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+          <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
+          <action android:name="android.intent.action.BOOT_COMPLETED"/>
+          <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
         </intent-filter>
       </receiver>
-      <provider
-        android:name="com.outsystems.plugins.localnotifications.LocalNotificationsAssetProvider"
-        android:authorities="${applicationId}.localnotifications.fileprovider"
-        android:exported="false"
-        android:grantUriPermissions="true">
-        <meta-data
-          android:name="android.support.FILE_PROVIDER_PATHS"
-          android:resource="@xml/localnotifications_provider_paths" />
+      <provider android:name="com.outsystems.plugins.localnotifications.LocalNotificationsAssetProvider" android:authorities="${applicationId}.localnotifications.fileprovider" android:exported="false" android:grantUriPermissions="true">
+        <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/localnotifications_provider_paths"/>
       </provider>
     </config-file>
-
     <config-file target="AndroidManifest.xml" parent="/manifest">
-      <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-      <uses-permission android:name="android.permission.WAKE_LOCK" />
-      <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-      <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+      <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+      <uses-permission android:name="android.permission.WAKE_LOCK"/>
+      <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+      <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     </config-file>
-
-    <framework src="src/android/build.gradle" custom="true" type="gradleReference" />
-
-    <source-file src="src/android/OSLocalNotificationsPlugin.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/JsonExtensions.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/AssetUtil.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LocalNotificationsError.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LocalNotificationsException.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/DateMatch.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LocalNotificationSchedule.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LocalNotification.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/NotificationStorage.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LocalNotificationManager.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/TimedNotificationPublisher.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LocalNotificationRestoreReceiver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/NotificationDismissReceiver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/SoundResolver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LocalNotificationsAssetProvider.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <source-file src="src/android/LegacyNotificationMigrator.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications" />
-    <resource-file src="src/android/localnotifications_provider_paths.xml" target="res/xml/localnotifications_provider_paths.xml" />
+    <framework src="src/android/build.gradle" custom="true" type="gradleReference"/>
+    <source-file src="src/android/OSLocalNotificationsPlugin.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/JsonExtensions.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/AssetUtil.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LocalNotificationsError.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LocalNotificationsException.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/DateMatch.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LocalNotificationSchedule.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LocalNotification.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/NotificationStorage.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LocalNotificationManager.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/TimedNotificationPublisher.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LocalNotificationRestoreReceiver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/NotificationDismissReceiver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/SoundResolver.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LocalNotificationsAssetProvider.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <source-file src="src/android/LegacyNotificationMigrator.kt" target-dir="app/src/main/kotlin/com/outsystems/plugins/localnotifications"/>
+    <resource-file src="src/android/localnotifications_provider_paths.xml" target="res/xml/localnotifications_provider_paths.xml"/>
   </platform>
-
-  <!-- ios -->
   <platform name="ios">
     <config-file parent="/*" target="config.xml">
       <feature name="OSLocalNotificationsPlugin">
-        <param name="ios-package" value="OSLocalNotificationsPlugin" />
+        <param name="ios-package" value="OSLocalNotificationsPlugin"/>
       </feature>
-      <preference name="SwiftVersion" value="5" />
+      <preference name="SwiftVersion" value="5"/>
     </config-file>
-
-    <framework src="UserNotifications.framework" />
-
-    <source-file src="src/ios/OSLocalNotificationsPlugin.swift" />
-    <source-file src="src/ios/LocalNotifications.swift" />
-    <source-file src="src/ios/LocalNotificationsHandler.swift" />
+    <framework src="UserNotifications.framework"/>
+    <source-file src="src/ios/OSLocalNotificationsPlugin.swift"/>
+    <source-file src="src/ios/LocalNotifications.swift"/>
+    <source-file src="src/ios/LocalNotificationsHandler.swift"/>
   </platform>
-
 </plugin>
