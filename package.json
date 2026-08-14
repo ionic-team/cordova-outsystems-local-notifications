@@ -1,6 +1,6 @@
 {
   "name": "com.outsystems.plugins.localnotifications",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OutSystems Cordova plugin for Local Notifications. Mirrors the @capacitor/local-notifications shared API.",
   "keywords": [
     "cordova",

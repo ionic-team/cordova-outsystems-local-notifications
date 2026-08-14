@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/ionic-team/cordova-outsystems-local-notifications/compare/1.0.0...1.0.1) (2026-08-14)
+
+
+### Bug Fixes
+
+* **ios:** avoid clash with Calendar Plugin ([#2](https://github.com/ionic-team/cordova-outsystems-local-notifications/issues/2)) ([e27d12e](https://github.com/ionic-team/cordova-outsystems-local-notifications/commit/e27d12e44f20d51afb71ef7a133caa9ff54370ef))
+
 # 1.0.0 (2026-08-12)
 
 
